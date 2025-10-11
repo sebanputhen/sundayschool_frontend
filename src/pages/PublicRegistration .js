@@ -23,6 +23,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  LinearProgress,
+  Backdrop,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
@@ -39,6 +41,7 @@ import {
   CheckCircle,
   Error as ErrorIcon,
   Home,
+  CloudUpload,
 } from '@mui/icons-material';
 import axiosInstance from "../axiosConfig";
 
@@ -100,6 +103,20 @@ const SectionTitle = styled(Typography)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
+const ProgressBackdrop = styled(Backdrop)(({ theme }) => ({
+  zIndex: theme.zIndex.drawer + 1,
+  color: '#fff',
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+}));
+
+const ProgressBox = styled(Box)(({ theme }) => ({
+  backgroundColor: 'white',
+  borderRadius: theme.spacing(2),
+  padding: theme.spacing(4),
+  minWidth: 300,
+  textAlign: 'center',
+}));
+
 const PublicRegistration = () => {
   const history = useHistory();
   
@@ -125,16 +142,17 @@ const PublicRegistration = () => {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
   
   // Popup states
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState(''); // 'success' or 'error'
+  const [dialogType, setDialogType] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // If date of birth changes, clear baptism and communion dates if they're now invalid
     if (name === 'dateOfBirth') {
       const newDob = new Date(value);
       const baptismDate = formData.dateOfBaptism ? new Date(formData.dateOfBaptism) : null;
@@ -143,9 +161,7 @@ const PublicRegistration = () => {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        // Clear baptism date if it's before new date of birth
         dateOfBaptism: baptismDate && baptismDate < newDob ? '' : prev.dateOfBaptism,
-        // Clear communion date if it's before new date of birth
         dateOfHolyCommunion: communionDate && communionDate < newDob ? '' : prev.dateOfHolyCommunion,
       }));
     } else {
@@ -168,8 +184,7 @@ const PublicRegistration = () => {
           let width = img.width;
           let height = img.height;
           
-          // Calculate new dimensions to maintain aspect ratio
-          const maxDimension = 800; // Maximum width or height
+          const maxDimension = 800;
           if (width > height && width > maxDimension) {
             height = (height * maxDimension) / width;
             width = maxDimension;
@@ -184,20 +199,17 @@ const PublicRegistration = () => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Start with quality of 0.7 and reduce if needed
           let quality = 0.7;
           const tryCompress = () => {
             canvas.toBlob(
               (blob) => {
                 if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
-                  // Create a new File object from the compressed blob
                   const compressedFile = new File([blob], file.name, {
                     type: 'image/jpeg',
                     lastModified: Date.now(),
                   });
                   resolve(compressedFile);
                 } else {
-                  // Reduce quality and try again
                   quality -= 0.1;
                   tryCompress();
                 }
@@ -237,22 +249,18 @@ const PublicRegistration = () => {
       }
 
       try {
-        // Show loading state
         setLoading(true);
         
-        // Compress the image to under 30KB
         const compressedFile = await compressImage(file, 30);
         
         setPhoto(compressedFile);
         
-        // Create preview
         const reader = new FileReader();
         reader.onloadend = () => {
           setPhotoPreview(reader.result);
         };
         reader.readAsDataURL(compressedFile);
         
-        // Show success message with file size
         const sizeKB = (compressedFile.size / 1024).toFixed(2);
         console.log(`Image compressed to ${sizeKB}KB`);
         
@@ -297,7 +305,6 @@ const PublicRegistration = () => {
       return false;
     }
 
-    // Validate date of birth is not in the future
     const dob = new Date(formData.dateOfBirth);
     const today = new Date();
     if (dob > today) {
@@ -307,7 +314,6 @@ const PublicRegistration = () => {
       return false;
     }
 
-    // Validate date of baptism is after date of birth
     if (formData.dateOfBaptism) {
       const baptismDate = new Date(formData.dateOfBaptism);
       if (baptismDate < dob) {
@@ -324,7 +330,6 @@ const PublicRegistration = () => {
       }
     }
 
-    // Validate date of holy communion is after date of birth
     if (formData.dateOfHolyCommunion) {
       const communionDate = new Date(formData.dateOfHolyCommunion);
       if (communionDate < dob) {
@@ -358,9 +363,17 @@ const PublicRegistration = () => {
 
     try {
       setLoading(true);
+      setUploadProgress(0);
+      setUploadStatus('Preparing your registration...');
 
       const formDataToSend = new FormData();
       
+      // Simulate progress steps
+      setTimeout(() => {
+        setUploadProgress(20);
+        setUploadStatus('Validating information...');
+      }, 200);
+
       Object.keys(formData).forEach(key => {
         formDataToSend.append(key, formData[key].trim());
       });
@@ -369,13 +382,32 @@ const PublicRegistration = () => {
         formDataToSend.append('photo', photo);
       }
 
+      setTimeout(() => {
+        setUploadProgress(40);
+        setUploadStatus('Uploading photo...');
+      }, 400);
+
       const response = await axiosInstance.post('/public/register', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(40 + (percentCompleted * 0.5)); // 40-90%
+          if (percentCompleted > 50) {
+            setUploadStatus('Processing registration...');
+          }
         }
       });
 
+      setUploadProgress(100);
+      setUploadStatus('Registration complete!');
+
+      // Small delay to show 100% completion
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       if (response.data.success) {
+        setLoading(false);
         setDialogType('success');
         setDialogMessage('Registration submitted successfully! You will be notified via email once approved.');
         setDialogOpen(true);
@@ -401,28 +433,25 @@ const PublicRegistration = () => {
         });
         setPhoto(null);
         setPhotoPreview(null);
+        setUploadProgress(0);
+        setUploadStatus('');
       }
     } catch (error) {
       console.error('Registration error:', error);
+      setLoading(false);
+      setUploadProgress(0);
+      setUploadStatus('');
       setDialogType('error');
       setDialogMessage(
         error.response?.data?.message || 
         'Registration failed. Please try again.'
       );
       setDialogOpen(true);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDialogClose = () => {
     setDialogOpen(false);
-    // Optional: Redirect after success
-    if (dialogType === 'success') {
-      // setTimeout(() => {
-      //   history.push('/');
-      // }, 500);
-    }
   };
 
   return (
@@ -621,7 +650,7 @@ const PublicRegistration = () => {
                     required
                     InputLabelProps={{ shrink: true }}
                     inputProps={{
-                      max: new Date().toISOString().split('T')[0], // Today's date
+                      max: new Date().toISOString().split('T')[0],
                     }}
                     InputProps={{
                       startAdornment: (
@@ -646,8 +675,8 @@ const PublicRegistration = () => {
                     required
                     InputLabelProps={{ shrink: true }}
                     inputProps={{
-                      min: formData.dateOfBirth || undefined, // Minimum is date of birth
-                      max: new Date().toISOString().split('T')[0], // Today's date
+                      min: formData.dateOfBirth || undefined,
+                      max: new Date().toISOString().split('T')[0],
                     }}
                     InputProps={{
                       startAdornment: (
@@ -671,8 +700,8 @@ const PublicRegistration = () => {
                     disabled={loading || !formData.dateOfBirth}
                     InputLabelProps={{ shrink: true }}
                     inputProps={{
-                      min: formData.dateOfBirth || undefined, // Minimum is date of birth
-                      max: new Date().toISOString().split('T')[0], // Today's date
+                      min: formData.dateOfBirth || undefined,
+                      max: new Date().toISOString().split('T')[0],
                     }}
                     InputProps={{
                       startAdornment: (
@@ -847,6 +876,26 @@ const PublicRegistration = () => {
           </StyledCard>
         </Container>
       </StyledBox>
+
+      {/* Progress Backdrop */}
+      <ProgressBackdrop open={loading}>
+        <ProgressBox>
+          <CloudUpload sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+          <Typography variant="h6" color="primary" gutterBottom>
+            {uploadStatus}
+          </Typography>
+          <Box sx={{ width: '100%', mt: 2 }}>
+            <LinearProgress 
+              variant="determinate" 
+              value={uploadProgress} 
+              sx={{ height: 8, borderRadius: 4 }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {uploadProgress}%
+            </Typography>
+          </Box>
+        </ProgressBox>
+      </ProgressBackdrop>
 
       {/* Success/Error Popup Dialog */}
       <Dialog
