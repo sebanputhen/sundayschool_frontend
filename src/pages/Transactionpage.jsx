@@ -1470,7 +1470,7 @@ const handleDelete = async (transactionData) => {
               </div>
               <div class="footer">
                 <p>This is a computer-generated receipt.</p>
-                <p>Jeevan Kanjirapally Diocese © ${new Date().getFullYear()}</p>
+                <p>Holy Family Suday School | Ponkunnam © ${new Date().getFullYear()}</p>
               </div>
             </div>
             </body>
