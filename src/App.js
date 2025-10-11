@@ -51,7 +51,8 @@ import OpeningBalance from './pages/OpeningBalance';
 import YearEndTransfer from './pages/YearEndTransfer';
 import logout from './pages/logout';
 import AuditDashboard from './pages/AuditDashboard';
-
+import Registration from './pages/PublicRegistration ';
+import AdminRegistrations from './pages/AdminRegistrations';
 // Styles
 import "antd/dist/antd.css";
 import "./assets/styles/main.css";
@@ -154,6 +155,7 @@ function App() {
               )}
             </Route>
             <Route exact path="/sign-up" component={SignUp} />
+            <Route exact path="/registration" component={Registration} />
             <Route exact path="/sign-in" component={SignIn} />
 
             {/* Protected routes with Main layout */}
@@ -167,7 +169,7 @@ function App() {
                   <Route exact path="/home" component={Home} />
                   <Route exact path="/dashboard" component={Home} />
                   <Route exact path="/profile" component={Profile} />
-
+                  <Route path="/adminreg" component={AdminRegistrations} />
                   {/* Organization routes */}
                   <Route exact path="/forane" component={Forane} />
                   <Route exact path="/parish" component={Parish} />
