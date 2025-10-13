@@ -133,9 +133,9 @@ function App() {
             <Route exact path="/">
               {isAuthenticated() ? (
                 isSuperAdmin() ? (
-                  <Redirect to="/super-admin" />
+                  <Redirect to="/adminreg" />
                 ) : (
-                  <Redirect to="/home" />
+                  <Redirect to="/adminreg" />
                 )
               ) : (
                 <Redirect to="/login" />
@@ -146,9 +146,9 @@ function App() {
             <Route exact path="/login">
               {isAuthenticated() ? (
                 isSuperAdmin() ? (
-                  <Redirect to="/super-admin" />
+                  <Redirect to="/adminreg" />
                 ) : (
-                  <Redirect to="/home" />
+                  <Redirect to="/adminreg" />
                 )
               ) : (
                 <LoginPage />
