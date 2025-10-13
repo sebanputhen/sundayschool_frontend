@@ -163,10 +163,10 @@ function App() {
               <Main>
                 <Switch>
                   {/* Super Admin Dashboard */}
-                  <SuperAdminRoute exact path="/adminreg" component={SuperAdminDashboard} />
+                  <SuperAdminRoute exact path="/adminreg" component={AdminRegistrations} />
 
                   {/* Core routes */}
-                  <Route exact path="/adminreg" component={Home} />
+                  <Route exact path="/adminreg" component={AdminRegistrations} />
                   {/* <Route exact path="/dashboard" component={Home} />
                   <Route exact path="/profile" component={Profile} />
                   <Route path="/adminreg" component={AdminRegistrations} /> */}
