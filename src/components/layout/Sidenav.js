@@ -151,7 +151,7 @@ const IconWrapper = styled(Box)(({ collapsed }) => ({
 const menuItems = [
   {
     type: 'single',
-    path: '/AdminRegistrations',
+    path: '/adminreg',
     label: 'Dashboard',
     icon: '📊',
   },
