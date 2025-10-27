@@ -504,8 +504,7 @@ const AdminRegistrations = () => {
             ["Mother's Name", student.motherName],
             ["Mother's Baptism Name", student.motherBaptismName || 'N/A'],
             ['Email', student.email],
-            ['Phone', student.phoneNumber],
-            ['Status', student.status.toUpperCase()],
+            ['Phone', student.phoneNumber],           
             ['Registration Date', formatDate(student.registrationDate)]
           ];
 
