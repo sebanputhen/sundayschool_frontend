@@ -45,6 +45,8 @@ import {
   FilterList,
   Search,
   ClearAll,
+  PictureAsPdf,
+  Download,
 } from '@mui/icons-material';
 import axiosInstance from "../axiosConfig";
 
@@ -257,7 +259,7 @@ const AdminRegistrations = () => {
 
   const getStatusChip = (status) => {
     const statusConfig = {
-      pending: { color: 'warning', label: 'Pending' },
+      pending: { color: 'success', label: 'List' },
       approved: { color: 'success', label: 'Approved' },
       rejected: { color: 'error', label: 'Rejected' },
     };
@@ -275,42 +277,393 @@ const AdminRegistrations = () => {
     });
   };
 
+  const handleDownloadPDF = (student) => {
+    // Import jsPDF dynamically
+    import('jspdf').then(({ jsPDF }) => {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPos = 20;
+
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(37, 99, 235);
+      doc.text('STUDENT REGISTRATION DETAILS', pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 15;
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.5);
+      doc.line(20, yPos, pageWidth - 20, yPos);
+      
+      yPos += 10;
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+
+      // Basic Information
+      doc.setFontSize(12);
+      doc.setTextColor(37, 99, 235);
+      doc.text('BASIC INFORMATION', 20, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Name: ${student.name}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Baptism Name: ${student.baptismName}`, 25, yPos);
+      yPos += 6;
+      doc.text(`House Name: ${student.houseName}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Class: ${student.className} - ${student.division}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Gender: ${student.gender}`, 25, yPos);
+      yPos += 6;
+      if (student.admissionNo) {
+        doc.text(`Admission No: ${student.admissionNo}`, 25, yPos);
+        yPos += 6;
+      }
+
+      yPos += 5;
+
+      // Important Dates
+      doc.setFontSize(12);
+      doc.setTextColor(37, 99, 235);
+      doc.text('IMPORTANT DATES', 20, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Date of Birth: ${formatDate(student.dateOfBirth)}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Date of Baptism: ${formatDate(student.dateOfBaptism)}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Date of Holy Communion: ${formatDate(student.dateOfHolyCommunion)}`, 25, yPos);
+      yPos += 8;
+
+      // Father's Information
+      doc.setFontSize(12);
+      doc.setTextColor(37, 99, 235);
+      doc.text("FATHER'S INFORMATION", 20, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Name: ${student.fatherName}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Baptism Name: ${student.fatherBaptismName || 'N/A'}`, 25, yPos);
+      yPos += 8;
+
+      // Mother's Information
+      doc.setFontSize(12);
+      doc.setTextColor(37, 99, 235);
+      doc.text("MOTHER'S INFORMATION", 20, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Name: ${student.motherName}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Baptism Name: ${student.motherBaptismName || 'N/A'}`, 25, yPos);
+      yPos += 8;
+
+      // Contact Information
+      doc.setFontSize(12);
+      doc.setTextColor(37, 99, 235);
+      doc.text('CONTACT INFORMATION', 20, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Email: ${student.email}`, 25, yPos);
+      yPos += 6;
+      doc.text(`Phone: ${student.phoneNumber}`, 25, yPos);
+      yPos += 8;
+
+      // Status
+      // doc.setFontSize(12);
+      // doc.setTextColor(37, 99, 235);
+      // doc.text('REGISTRATION STATUS', 20, yPos);
+      // yPos += 8;
+      
+      // doc.setFontSize(10);
+      // doc.setTextColor(0, 0, 0);
+      // doc.text(`Status: ${student.status.toUpperCase()}`, 25, yPos);
+      // yPos += 6;
+      // doc.text(`Registration Date: ${formatDate(student.registrationDate)}`, 25, yPos);
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, pageWidth / 2, 280, { align: 'center' });
+
+      // Save PDF
+      doc.save(`${student.name.replace(/\s+/g, '_')}_registration.pdf`);
+      showAlert('success', 'PDF downloaded successfully');
+    }).catch(err => {
+      console.error('Error loading jsPDF:', err);
+      showAlert('error', 'Failed to generate PDF. Please install jspdf: npm install jspdf');
+    });
+  };
+
+  const handleDownloadAllPDF = () => {
+    if (filteredRegistrations.length === 0) {
+      showAlert('error', 'No students to download');
+      return;
+    }
+
+    import('jspdf').then(({ jsPDF }) => {
+      import('jspdf-autotable').then(() => {
+        const doc = new jsPDF();
+        const statusMap = ['', '', ''];
+        const currentStatus = statusMap[currentTab];
+
+        // Title Page
+        doc.setFontSize(20);
+        doc.setTextColor(37, 99, 235);
+        doc.text('STUDENT REGISTRATION REPORT', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+        
+        doc.setFontSize(14);
+        doc.text(currentStatus.toUpperCase(), doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, doc.internal.pageSize.getWidth() / 2, 55, { align: 'center' });
+        doc.text(`Total Students: ${filteredRegistrations.length}`, doc.internal.pageSize.getWidth() / 2, 62, { align: 'center' });
+        
+        if (searchQuery || classFilter || divisionFilter) {
+          let filterText = 'Filters: ';
+          if (searchQuery) filterText += `Search="${searchQuery}" `;
+          if (classFilter) filterText += `Class=${classFilter} `;
+          if (divisionFilter) filterText += `Division=${divisionFilter}`;
+          doc.text(filterText, doc.internal.pageSize.getWidth() / 2, 69, { align: 'center' });
+        }
+
+        // Summary Table
+        const summaryData = filteredRegistrations.map((student, index) => [
+          index + 1,
+          student.name,
+          student.houseName,
+          `${student.className}-${student.division}`,
+          formatDate(student.dateOfBirth),
+          formatDate(student.dateOfBaptism),
+          student.fatherName,
+          student.motherName,
+          student.email,
+          student.phoneNumber
+        ]);
+
+        doc.autoTable({
+          startY: 80,
+          head: [['#', 'Name', 'House', 'Class', 'DOB', 'Baptism', 'Father', 'Mother', 'Email', 'Phone']],
+          body: summaryData,
+          theme: 'striped',
+          headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 15 },
+            3: { cellWidth: 15 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 20 },
+            7: { cellWidth: 20 },
+            8: { cellWidth: 25 },
+            9: { cellWidth: 20 }
+          },
+          margin: { left: 10, right: 10 }
+        });
+
+        // Detailed pages for each student
+        filteredRegistrations.forEach((student, index) => {
+          doc.addPage();
+          let yPos = 20;
+
+          // Student header
+          doc.setFontSize(16);
+          doc.setTextColor(37, 99, 235);
+          doc.text(`STUDENT ${index + 1} of ${filteredRegistrations.length}`, 20, yPos);
+          yPos += 10;
+          
+          doc.setDrawColor(37, 99, 235);
+          doc.setLineWidth(0.5);
+          doc.line(20, yPos, doc.internal.pageSize.getWidth() - 20, yPos);
+          yPos += 10;
+
+          // Create detailed table for this student
+          const studentDetails = [
+            ['Name', student.name],
+            ['Baptism Name', student.baptismName],
+            ['House Name', student.houseName],
+            ['Class', `${student.className} - ${student.division}`],
+            ['Gender', student.gender],
+            ['Admission No', student.admissionNo || 'N/A'],
+            ['Date of Birth', formatDate(student.dateOfBirth)],
+            ['Date of Baptism', formatDate(student.dateOfBaptism)],
+            ['Date of Holy Communion', formatDate(student.dateOfHolyCommunion)],
+            ["Father's Name", student.fatherName],
+            ["Father's Baptism Name", student.fatherBaptismName || 'N/A'],
+            ["Mother's Name", student.motherName],
+            ["Mother's Baptism Name", student.motherBaptismName || 'N/A'],
+            ['Email', student.email],
+            ['Phone', student.phoneNumber],
+            ['Status', student.status.toUpperCase()],
+            ['Registration Date', formatDate(student.registrationDate)]
+          ];
+
+          doc.autoTable({
+            startY: yPos,
+            body: studentDetails,
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            columnStyles: {
+              0: { cellWidth: 60, fontStyle: 'bold', fillColor: [240, 240, 240] },
+              1: { cellWidth: 110 }
+            }
+          });
+        });
+
+        // Save PDF
+        const timestamp = new Date().toISOString().split('T')[0];
+        let filename = `Students_${currentStatus}_${timestamp}`;
+        if (classFilter) filename += `_Class${classFilter}`;
+        if (divisionFilter) filename += `_Div${divisionFilter}`;
+        filename += `_${filteredRegistrations.length}students.pdf`;
+
+        doc.save(filename);
+        showAlert('success', `PDF downloaded with ${filteredRegistrations.length} students`);
+      });
+    }).catch(err => {
+      console.error('Error loading jsPDF:', err);
+      showAlert('error', 'Failed to generate PDF. Please install: npm install jspdf jspdf-autotable');
+    });
+  };
+
+  const handleDownloadAllCSV = () => {
+    if (filteredRegistrations.length === 0) {
+      showAlert('error', 'No students to download');
+      return;
+    }
+
+    // Create CSV header
+    const headers = [
+      'Photo URL',
+      'Name',
+      'Baptism Name',
+      'House Name',
+      'Class',
+      'Division',
+      'Gender',
+      'Date of Birth',
+      'Date of Baptism',
+      'Date of Holy Communion',
+      'Father Name',
+      'Father Baptism Name',
+      'Mother Name',
+      'Mother Baptism Name',
+      'Email',
+      'Phone',
+      'Status',
+      'Admission No',
+      'Registration Date'
+    ].join(',');
+
+    // Create CSV rows
+    const rows = filteredRegistrations.map(student => {
+      return [
+        student.photo || '',
+        `"${student.name}"`,
+        `"${student.baptismName}"`,
+        `"${student.houseName}"`,
+        student.className,
+        student.division,
+        student.gender,
+        formatDate(student.dateOfBirth),
+        formatDate(student.dateOfBaptism),
+        formatDate(student.dateOfHolyCommunion),
+        `"${student.fatherName}"`,
+        `"${student.fatherBaptismName || ''}"`,
+        `"${student.motherName}"`,
+        `"${student.motherBaptismName || ''}"`,
+        student.email,
+        student.phoneNumber,
+        student.status.toUpperCase(),
+        student.admissionNo || '',
+        formatDate(student.registrationDate)
+      ].join(',');
+    });
+
+    const csvContent = [headers, ...rows].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Generate filename
+    const statusMap = ['Pending', 'Approved', 'Rejected'];
+    const timestamp = new Date().toISOString().split('T')[0];
+    let filename = `Students_${statusMap[currentTab]}_${timestamp}`;
+    if (classFilter) filename += `_Class${classFilter}`;
+    if (divisionFilter) filename += `_Div${divisionFilter}`;
+    filename += `.csv`;
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showAlert('success', `Downloaded CSV with ${filteredRegistrations.length} students`);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ p: 3, minHeight: '100vh', bgcolor: '#F8FAFC' }}>
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: 3 }}>
+        {/* Alert */}
+        {alert.open && (
+          <Alert 
+            severity={alert.type} 
+            sx={{ mb: 3, position: 'fixed', top: 20, right: 20, zIndex: 9999 }}
+            onClose={() => setAlert({ open: false, type: '', message: '' })}
+          >
+            {alert.message}
+          </Alert>
+        )}
+
         <Box sx={{ maxWidth: 1400, margin: '0 auto' }}>
           {/* Header */}
           <Box sx={{ mb: 4 }}>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Student Registrations
+            <Typography variant="h4" fontWeight="bold" color="primary">
+              Student Registrations Management
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Manage student registration requests
+              Manage and review student registration submissions
             </Typography>
           </Box>
 
-          {/* Alert */}
-          {alert.open && (
-            <Alert severity={alert.type} onClose={() => setAlert({ ...alert, open: false })} sx={{ mb: 3 }}>
-              {alert.message}
-            </Alert>
-          )}
-
-          {/* Filters and Actions */}
+          {/* Tabs */}
           <StyledCard>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={4}>
+            <Tabs
+              value={currentTab}
+              onChange={(e, newValue) => setCurrentTab(newValue)}
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+            >
+              <Tab label="List" />
+              {/* <Tab label="Approved" />
+              <Tab label="Rejected" /> */}
+            </Tabs>
+
+            {/* Filters */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={4}>
                 <TextField
-                  placeholder="Search by name, email, admission no..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  size="small"
                   fullWidth
-                  InputProps={{
-                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-                  }}
-                />
+                  size="small"
+                  label="Search"
+                  placeholder="Name, email, phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}></TextField>
               </Grid>
               
               <Grid item xs={12} sm={6} md={2}>
@@ -379,6 +732,32 @@ const AdminRegistrations = () => {
                   Refresh
                 </Button>
               </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Download />}
+                  onClick={handleDownloadAllPDF}
+                  disabled={loading || filteredRegistrations.length === 0}
+                  fullWidth
+                >
+                  Download All ({filteredRegistrations.length})
+                </Button>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={2}>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  startIcon={<Download />}
+                  onClick={handleDownloadAllCSV}
+                  disabled={loading || filteredRegistrations.length === 0}
+                  fullWidth
+                >
+                  CSV
+                </Button>
+              </Grid>
             </Grid>
 
             {/* Filter Summary */}
@@ -414,9 +793,9 @@ const AdminRegistrations = () => {
             {/* Tabs */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3 }}>
               <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
-                <Tab label="Pending" />
-                <Tab label="Approved" />
-                <Tab label="Rejected" />
+                <Tab label="List" />
+                {/* <Tab label="Approved" />
+                <Tab label="Rejected" /> */}
               </Tabs>
             </Box>
           </StyledCard>
@@ -450,13 +829,17 @@ const AdminRegistrations = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Photo</TableCell>
-                      <TableCell>Admission No</TableCell>
                       <TableCell>Name</TableCell>
+                      <TableCell>House Name</TableCell>
                       <TableCell>Class</TableCell>
+                      <TableCell>Date of Birth</TableCell>
+                      <TableCell>Date of Baptism</TableCell>
+                      <TableCell>Father</TableCell>
+                      <TableCell>Mother</TableCell>
                       <TableCell>Email</TableCell>
                       <TableCell>Phone</TableCell>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Status</TableCell>
+                      {currentTab === 1 && <TableCell>Admission No</TableCell>}
+                      {/* <TableCell>Status</TableCell> */}
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -465,17 +848,13 @@ const AdminRegistrations = () => {
                       <TableRow key={student._id} hover>
                         <TableCell>
                           <Avatar
-                            src={student.photo ? `${axiosInstance.defaults.baseURL}${student.photo}` : undefined}
+                            src={student.photo || undefined}
                             alt={student.name}
-                            sx={{ width: 50, height: 50 }}
+                            sx={{ width: 50, height: 50, cursor: 'pointer' }}
+                            onClick={() => handleView(student._id)}
                           >
                             {student.name.charAt(0)}
                           </Avatar>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="medium">
-                            {student.admissionNo || 'N/A'}
-                          </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
@@ -486,18 +865,67 @@ const AdminRegistrations = () => {
                           </Typography>
                         </TableCell>
                         <TableCell>
+                          <Typography variant="body2">
+                            {student.houseName}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
                           {student.className} - {student.division}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(student.dateOfBirth)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(student.dateOfBaptism)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {student.fatherName}
+                          </Typography>
+                          {student.fatherBaptismName && (
+                            <Typography variant="caption" color="text.secondary">
+                              ({student.fatherBaptismName})
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {student.motherName}
+                          </Typography>
+                          {student.motherBaptismName && (
+                            <Typography variant="caption" color="text.secondary">
+                              ({student.motherBaptismName})
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell>{student.email}</TableCell>
                         <TableCell>{student.phoneNumber}</TableCell>
-                        <TableCell>
-                          {formatDate(student.registrationDate)}
-                        </TableCell>
-                        <TableCell>
+                        {currentTab === 1 && (
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {student.admissionNo || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                        )}
+                        {/* <TableCell>
                           {getStatusChip(student.status)}
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell align="right">
                           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                            {/* <Tooltip title="Download PDF">
+                              <IconButton
+                                size="small"
+                                color="secondary"
+                                onClick={() => handleDownloadPDF(student)}
+                              >
+                                <PictureAsPdf />
+                              </IconButton>
+                            </Tooltip> */}
+
                             <Tooltip title="View Details">
                               <IconButton
                                 size="small"
@@ -508,7 +936,7 @@ const AdminRegistrations = () => {
                               </IconButton>
                             </Tooltip>
                             
-                            {student.status === 'pending' && (
+                            {/* {student.status === 'pending' && (
                               <>
                                 <Tooltip title="Approve">
                                   <IconButton
@@ -529,7 +957,7 @@ const AdminRegistrations = () => {
                                   </IconButton>
                                 </Tooltip>
                               </>
-                            )}
+                            )} */}
                             
                             <Tooltip title="Delete">
                               <IconButton
@@ -570,27 +998,30 @@ const AdminRegistrations = () => {
             <Grid container spacing={3}>
               <Grid item xs={12} sx={{ textAlign: 'center' }}>
                 <Avatar
-                  src={selectedStudent.photo ? `${axiosInstance.defaults.baseURL}${selectedStudent.photo}` : undefined}
+                  src={selectedStudent.photo || undefined}
                   alt={selectedStudent.name}
-                  sx={{ width: 120, height: 120, margin: '0 auto' }}
+                  sx={{ width: 150, height: 150, margin: '0 auto', border: '4px solid #2563EB' }}
                 >
                   {selectedStudent.name.charAt(0)}
                 </Avatar>
-                <Typography variant="h6" sx={{ mt: 2 }}>
+                <Typography variant="h5" sx={{ mt: 2, fontWeight: 'bold' }}>
                   {selectedStudent.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {selectedStudent.baptismName}
                 </Typography>
                 {getStatusChip(selectedStudent.status)}
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" gutterBottom>
+                <Typography variant="subtitle2" color="primary" gutterBottom fontWeight="bold" sx={{ mt: 2 }}>
                   Student Information
                 </Typography>
               </Grid>
               
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Admission Number</Typography>
-                <Typography variant="body2">{selectedStudent.admissionNo || 'Not assigned'}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.admissionNo || 'Not assigned'}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Baptism Name</Typography>
@@ -606,15 +1037,15 @@ const AdminRegistrations = () => {
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Class & Division</Typography>
-                <Typography variant="body2">{selectedStudent.className} - {selectedStudent.division}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.className} - {selectedStudent.division}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Date of Birth</Typography>
-                <Typography variant="body2">{formatDate(selectedStudent.dateOfBirth)}</Typography>
+                <Typography variant="body2" fontWeight="medium">{formatDate(selectedStudent.dateOfBirth)}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Date of Baptism</Typography>
-                <Typography variant="body2">{formatDate(selectedStudent.dateOfBaptism)}</Typography>
+                <Typography variant="body2" fontWeight="medium">{formatDate(selectedStudent.dateOfBaptism)}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Date of Holy Communion</Typography>
@@ -622,14 +1053,14 @@ const AdminRegistrations = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" gutterBottom>
+                <Typography variant="subtitle2" color="primary" gutterBottom fontWeight="bold" sx={{ mt: 2 }}>
                   Parent Information
                 </Typography>
               </Grid>
               
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Father's Name</Typography>
-                <Typography variant="body2">{selectedStudent.fatherName}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.fatherName}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Father's Baptism Name</Typography>
@@ -637,7 +1068,7 @@ const AdminRegistrations = () => {
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Mother's Name</Typography>
-                <Typography variant="body2">{selectedStudent.motherName}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.motherName}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Mother's Baptism Name</Typography>
@@ -645,18 +1076,18 @@ const AdminRegistrations = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" gutterBottom>
+                <Typography variant="subtitle2" color="primary" gutterBottom fontWeight="bold" sx={{ mt: 2 }}>
                   Contact Information
                 </Typography>
               </Grid>
               
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Email</Typography>
-                <Typography variant="body2">{selectedStudent.email}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.email}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">Phone</Typography>
-                <Typography variant="body2">{selectedStudent.phoneNumber}</Typography>
+                <Typography variant="body2" fontWeight="medium">{selectedStudent.phoneNumber}</Typography>
               </Grid>
 
               {selectedStudent.status === 'rejected' && selectedStudent.rejectionReason && (
@@ -700,6 +1131,15 @@ const AdminRegistrations = () => {
                 Reject
               </Button>
             </>
+          )}
+          {selectedStudent && (
+            <Button
+              onClick={() => handleDownloadPDF(selectedStudent)}
+              variant="outlined"
+              startIcon={<PictureAsPdf />}
+            >
+              Download PDF
+            </Button>
           )}
           <Button onClick={() => setViewDialog(false)}>Close</Button>
         </DialogActions>
