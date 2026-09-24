@@ -138,7 +138,7 @@ function App() {
                   <Redirect to="/adminreg" />
                 )
               ) : (
-                <Redirect to="/login" />
+                <Redirect to="/registration" />
               )}
             </Route>
 
