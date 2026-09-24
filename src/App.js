@@ -150,7 +150,7 @@ function App() {
                 ) : (
                   <Redirect to="/adminreg" />
                 )
-              ) : (
+              ) : ( 
                 <LoginPage />
               )}
             </Route>
