@@ -25,6 +25,9 @@ import {
   DialogActions,
   LinearProgress,
   Backdrop,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
@@ -42,6 +45,9 @@ import {
   Error as ErrorIcon,
   Home,
   CloudUpload,
+  ArrowBack,
+  ArrowForward,
+  Check,
 } from '@mui/icons-material';
 import axiosInstance from "../axiosConfig";
 
@@ -96,7 +102,7 @@ const PhotoUploadBox = styled(Box)(({ theme }) => ({
 const SectionTitle = styled(Typography)(({ theme }) => ({
   color: theme.palette.primary.main,
   fontWeight: 600,
-  marginTop: theme.spacing(3),
+  marginTop: theme.spacing(1),
   marginBottom: theme.spacing(2),
   display: 'flex',
   alignItems: 'center',
@@ -117,9 +123,12 @@ const ProgressBox = styled(Box)(({ theme }) => ({
   textAlign: 'center',
 }));
 
+const steps = ['Photo', 'Student Info', 'Parent Info', 'Contact'];
+
 const PublicRegistration = () => {
   const history = useHistory();
-  
+  const [activeStep, setActiveStep] = useState(0);
+
   const [formData, setFormData] = useState({
     admissionNo: '',
     name: '',
@@ -144,20 +153,19 @@ const PublicRegistration = () => {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
-  
-  // Popup states
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'dateOfBirth') {
       const newDob = new Date(value);
       const baptismDate = formData.dateOfBaptism ? new Date(formData.dateOfBaptism) : null;
       const communionDate = formData.dateOfHolyCommunion ? new Date(formData.dateOfHolyCommunion) : null;
-      
+
       setFormData(prev => ({
         ...prev,
         [name]: value,
@@ -183,7 +191,7 @@ const PublicRegistration = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          
+
           const maxDimension = 800;
           if (width > height && width > maxDimension) {
             height = (height * maxDimension) / width;
@@ -192,13 +200,13 @@ const PublicRegistration = () => {
             width = (width * maxDimension) / height;
             height = maxDimension;
           }
-          
+
           canvas.width = width;
           canvas.height = height;
-          
+
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          
+
           let quality = 0.7;
           const tryCompress = () => {
             canvas.toBlob(
@@ -218,16 +226,12 @@ const PublicRegistration = () => {
               quality
             );
           };
-          
+
           tryCompress();
         };
-        img.onerror = () => {
-          reject(new Error('Failed to load image'));
-        };
+        img.onerror = () => reject(new Error('Failed to load image'));
       };
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
     });
   };
 
@@ -240,7 +244,7 @@ const PublicRegistration = () => {
         setDialogOpen(true);
         return;
       }
-      
+
       if (!file.type.startsWith('image/')) {
         setDialogType('error');
         setDialogMessage('Please upload a valid image file');
@@ -250,20 +254,17 @@ const PublicRegistration = () => {
 
       try {
         setLoading(true);
-        
         const compressedFile = await compressImage(file, 30);
-        
         setPhoto(compressedFile);
-        
+
         const reader = new FileReader();
         reader.onloadend = () => {
           setPhotoPreview(reader.result);
         };
         reader.readAsDataURL(compressedFile);
-        
+
         const sizeKB = (compressedFile.size / 1024).toFixed(2);
         console.log(`Image compressed to ${sizeKB}KB`);
-        
         setLoading(false);
       } catch (error) {
         console.error('Image compression error:', error);
@@ -275,91 +276,112 @@ const PublicRegistration = () => {
     }
   };
 
-  const validateForm = () => {
-    const requiredFields = [
-      'name', 'baptismName', 'houseName', 'gender', 'className', 
-      'division', 'dateOfBirth', 'dateOfBaptism', 'fatherName', 
-      'motherName', 'phoneNumber', 'email'
-    ];
+  const showError = (msg) => {
+    setDialogType('error');
+    setDialogMessage(msg);
+    setDialogOpen(true);
+  };
 
-    for (let field of requiredFields) {
-      if (!formData[field] || formData[field].trim() === '') {
-        setDialogType('error');
-        setDialogMessage(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
-        setDialogOpen(true);
-        return false;
-      }
-    }
-
-    if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      setDialogType('error');
-      setDialogMessage('Please enter a valid email address');
-      setDialogOpen(true);
-      return false;
-    }
-
-    if (formData.phoneNumber.length < 10) {
-      setDialogType('error');
-      setDialogMessage('Please enter a valid phone number (at least 10 digits)');
-      setDialogOpen(true);
-      return false;
-    }
-
-    const dob = new Date(formData.dateOfBirth);
+  const validateStep = (step) => {
     const today = new Date();
-    if (dob > today) {
-      setDialogType('error');
-      setDialogMessage('Date of birth cannot be in the future');
-      setDialogOpen(true);
-      return false;
-    }
 
-    if (formData.dateOfBaptism) {
-      const baptismDate = new Date(formData.dateOfBaptism);
-      if (baptismDate < dob) {
-        setDialogType('error');
-        setDialogMessage('Date of baptism must be after date of birth');
-        setDialogOpen(true);
-        return false;
-      }
-      if (baptismDate > today) {
-        setDialogType('error');
-        setDialogMessage('Date of baptism cannot be in the future');
-        setDialogOpen(true);
-        return false;
-      }
-    }
+    switch (step) {
+      case 0: // Photo
+        if (!photo) {
+          showError('Please upload a photo');
+          return false;
+        }
+        return true;
 
-    if (formData.dateOfHolyCommunion) {
-      const communionDate = new Date(formData.dateOfHolyCommunion);
-      if (communionDate < dob) {
-        setDialogType('error');
-        setDialogMessage('Date of holy communion must be after date of birth');
-        setDialogOpen(true);
-        return false;
-      }
-      if (communionDate > today) {
-        setDialogType('error');
-        setDialogMessage('Date of holy communion cannot be in the future');
-        setDialogOpen(true);
-        return false;
-      }
-    }
+      case 1: // Student Info
+        const studentRequired = ['name', 'baptismName', 'houseName', 'gender', 'className', 'division', 'dateOfBirth', 'dateOfBaptism'];
+        for (let field of studentRequired) {
+          if (!formData[field] || formData[field].trim() === '') {
+            showError(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+            return false;
+          }
+        }
 
-    if (!photo) {
-      setDialogType('error');
-      setDialogMessage('Please upload a photo');
-      setDialogOpen(true);
-      return false;
-    }
+        const dob = new Date(formData.dateOfBirth);
+        if (dob > today) {
+          showError('Date of birth cannot be in the future');
+          return false;
+        }
 
-    return true;
+        if (formData.dateOfBaptism) {
+          const baptismDate = new Date(formData.dateOfBaptism);
+          if (baptismDate < dob) {
+            showError('Date of baptism must be after date of birth');
+            return false;
+          }
+          if (baptismDate > today) {
+            showError('Date of baptism cannot be in the future');
+            return false;
+          }
+        }
+
+        if (formData.dateOfHolyCommunion) {
+          const communionDate = new Date(formData.dateOfHolyCommunion);
+          if (communionDate < dob) {
+            showError('Date of holy communion must be after date of birth');
+            return false;
+          }
+          if (communionDate > today) {
+            showError('Date of holy communion cannot be in the future');
+            return false;
+          }
+        }
+        return true;
+
+      case 2: // Parent Info
+        const parentRequired = ['fatherName', 'motherName'];
+        for (let field of parentRequired) {
+          if (!formData[field] || formData[field].trim() === '') {
+            showError(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+            return false;
+          }
+        }
+        return true;
+
+      case 3: // Contact
+        if (!formData.phoneNumber || formData.phoneNumber.trim() === '') {
+          showError('Please fill in phone number');
+          return false;
+        }
+        if (!formData.email || formData.email.trim() === '') {
+          showError('Please fill in email');
+          return false;
+        }
+        if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+          showError('Please enter a valid email address');
+          return false;
+        }
+        if (formData.phoneNumber.length < 10) {
+          showError('Please enter a valid phone number (at least 10 digits)');
+          return false;
+        }
+        return true;
+
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (!validateStep(activeStep)) return;
+    setActiveStep(prev => prev + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = () => {
+    setActiveStep(prev => prev - 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+
+    if (!validateStep(activeStep)) return;
 
     try {
       setLoading(true);
@@ -367,8 +389,7 @@ const PublicRegistration = () => {
       setUploadStatus('Preparing your registration...');
 
       const formDataToSend = new FormData();
-      
-      // Simulate progress steps
+
       setTimeout(() => {
         setUploadProgress(20);
         setUploadStatus('Validating information...');
@@ -377,7 +398,7 @@ const PublicRegistration = () => {
       Object.keys(formData).forEach(key => {
         formDataToSend.append(key, formData[key].trim());
       });
-      
+
       if (photo) {
         formDataToSend.append('photo', photo);
       }
@@ -393,7 +414,7 @@ const PublicRegistration = () => {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(40 + (percentCompleted * 0.5)); // 40-90%
+          setUploadProgress(40 + (percentCompleted * 0.5));
           if (percentCompleted > 50) {
             setUploadStatus('Processing registration...');
           }
@@ -403,7 +424,6 @@ const PublicRegistration = () => {
       setUploadProgress(100);
       setUploadStatus('Registration complete!');
 
-      // Small delay to show 100% completion
       await new Promise(resolve => setTimeout(resolve, 500));
 
       if (response.data.success) {
@@ -411,8 +431,7 @@ const PublicRegistration = () => {
         setDialogType('success');
         setDialogMessage('Registration submitted successfully! You will be notified via email once approved.');
         setDialogOpen(true);
-        
-        // Clear form
+
         setFormData({
           admissionNo: '',
           name: '',
@@ -435,6 +454,7 @@ const PublicRegistration = () => {
         setPhotoPreview(null);
         setUploadProgress(0);
         setUploadStatus('');
+        setActiveStep(0);
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -443,7 +463,7 @@ const PublicRegistration = () => {
       setUploadStatus('');
       setDialogType('error');
       setDialogMessage(
-        error.response?.data?.message || 
+        error.response?.data?.message ||
         'Registration failed. Please try again.'
       );
       setDialogOpen(true);
@@ -454,6 +474,211 @@ const PublicRegistration = () => {
     setDialogOpen(false);
   };
 
+  // ---------- Step content renderers ----------
+
+  const renderPhotoStep = () => (
+    <Box>
+      <SectionTitle variant="h6">
+        <PhotoCamera /> Upload Photo
+      </SectionTitle>
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <input
+          accept="image/*"
+          style={{ display: 'none' }}
+          id="photo-upload"
+          type="file"
+          onChange={handlePhotoChange}
+          disabled={loading}
+        />
+        <label htmlFor="photo-upload">
+          <PhotoUploadBox>
+            {photoPreview ? (
+              <Avatar src={photoPreview} sx={{ width: 120, height: 120 }} />
+            ) : (
+              <Avatar sx={{ width: 120, height: 120, bgcolor: 'grey.300' }}>
+                <PhotoCamera sx={{ fontSize: 48 }} />
+              </Avatar>
+            )}
+            <Button variant="outlined" component="span" startIcon={<PhotoCamera />} disabled={loading}>
+              Upload Photo
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Max size: 10MB (will be compressed to ~30KB)
+            </Typography>
+          </PhotoUploadBox>
+        </label>
+      </Box>
+    </Box>
+  );
+
+  const renderStudentStep = () => (
+    <Box>
+      <SectionTitle variant="h6">
+        <School /> Student Information
+      </SectionTitle>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Full Name" name="name"
+            value={formData.name} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Person /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Baptism Name" name="baptismName"
+            value={formData.baptismName} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Church /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="House Name" name="houseName"
+            value={formData.houseName} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Home /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <FormControl fullWidth required>
+            <InputLabel>Gender</InputLabel>
+            <Select
+              name="gender" value={formData.gender} onChange={handleChange}
+              disabled={loading} label="Gender"
+              startAdornment={<InputAdornment position="start"><Wc /></InputAdornment>}
+            >
+              <MenuItem value="Male">Male</MenuItem>
+              <MenuItem value="Female">Female</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <FormControl fullWidth required>
+            <InputLabel>Class</InputLabel>
+            <Select name="className" value={formData.className} onChange={handleChange} disabled={loading} label="Class">
+              {[...Array(12)].map((_, i) => (
+                <MenuItem key={i + 1} value={String(i + 1)}>Class {i + 1}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <FormControl fullWidth required>
+            <InputLabel>Division</InputLabel>
+            <Select name="division" value={formData.division} onChange={handleChange} disabled={loading} label="Division">
+              {['A', 'B', 'C', 'D', 'E'].map(d => (
+                <MenuItem key={d} value={d}>{d}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Date of Birth" name="dateOfBirth" type="date"
+            value={formData.dateOfBirth} onChange={handleChange} disabled={loading} required
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ max: new Date().toISOString().split('T')[0] }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonth /></InputAdornment> }}
+            helperText="Select date up to today"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Date of Baptism" name="dateOfBaptism" type="date"
+            value={formData.dateOfBaptism} onChange={handleChange}
+            disabled={loading || !formData.dateOfBirth} required
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: formData.dateOfBirth || undefined, max: new Date().toISOString().split('T')[0] }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Church /></InputAdornment> }}
+            helperText={!formData.dateOfBirth ? "Select date of birth first" : "Select date after birth"}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Date of Holy Communion" name="dateOfHolyCommunion" type="date"
+            value={formData.dateOfHolyCommunion} onChange={handleChange}
+            disabled={loading || !formData.dateOfBirth}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: formData.dateOfBirth || undefined, max: new Date().toISOString().split('T')[0] }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Church /></InputAdornment> }}
+            helperText={!formData.dateOfBirth ? "Select date of birth first" : "Select date after birth (optional)"}
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  const renderParentStep = () => (
+    <Box>
+      <SectionTitle variant="h6">
+        <FamilyRestroom /> Parent Information
+      </SectionTitle>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Father's Name" name="fatherName"
+            value={formData.fatherName} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Person /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Father's Baptism Name" name="fatherBaptismName"
+            value={formData.fatherBaptismName} onChange={handleChange} disabled={loading}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Church /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Mother's Name" name="motherName"
+            value={formData.motherName} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Person /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Mother's Baptism Name" name="motherBaptismName"
+            value={formData.motherBaptismName} onChange={handleChange} disabled={loading}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Church /></InputAdornment> }}
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  const renderContactStep = () => (
+    <Box>
+      <SectionTitle variant="h6">
+        <Phone /> Contact Information
+      </SectionTitle>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Phone Number" name="phoneNumber"
+            value={formData.phoneNumber} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Phone /></InputAdornment> }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth label="Email Address" name="email" type="email"
+            value={formData.email} onChange={handleChange} disabled={loading} required
+            InputProps={{ startAdornment: <InputAdornment position="start"><Email /></InputAdornment> }}
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  const getStepContent = (step) => {
+    switch (step) {
+      case 0: return renderPhotoStep();
+      case 1: return renderStudentStep();
+      case 2: return renderParentStep();
+      case 3: return renderContactStep();
+      default: return null;
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -461,7 +686,7 @@ const PublicRegistration = () => {
         <Container maxWidth="md">
           <StyledCard>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
               <PersonAdd sx={{ fontSize: 56, color: 'primary.main', mb: 2 }} />
               <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
                 Student Registration
@@ -471,407 +696,80 @@ const PublicRegistration = () => {
               </Typography>
             </Box>
 
+            {/* Stepper */}
+            <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+
             <Box component="form" onSubmit={handleSubmit}>
-              {/* Photo Upload */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-                <input
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  id="photo-upload"
-                  type="file"
-                  onChange={handlePhotoChange}
-                  disabled={loading}
-                />
-                <label htmlFor="photo-upload">
-                  <PhotoUploadBox>
-                    {photoPreview ? (
-                      <Avatar
-                        src={photoPreview}
-                        sx={{ width: 120, height: 120 }}
-                      />
+              {/* Step Content */}
+              {getStepContent(activeStep)}
+
+              {/* Navigation Buttons */}
+              <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+                {activeStep > 0 && (
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={handleBack}
+                    startIcon={<ArrowBack />}
+                    sx={{ flex: 1, py: 1.5 }}
+                  >
+                    Back
+                  </Button>
+                )}
+
+                {activeStep < steps.length - 1 ? (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleNext}
+                    endIcon={<ArrowForward />}
+                    sx={{
+                      flex: 1,
+                      py: 1.5,
+                      backgroundColor: 'primary.main',
+                      '&:hover': { backgroundColor: 'primary.dark' },
+                    }}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={loading}
+                    endIcon={loading ? null : <Check />}
+                    sx={{
+                      flex: 1,
+                      py: 1.5,
+                      backgroundColor: 'primary.main',
+                      '&:hover': { backgroundColor: 'primary.dark' },
+                    }}
+                  >
+                    {loading ? (
+                      <CircularProgress size={24} sx={{ color: 'white' }} />
                     ) : (
-                      <Avatar sx={{ width: 120, height: 120, bgcolor: 'grey.300' }}>
-                        <PhotoCamera sx={{ fontSize: 48 }} />
-                      </Avatar>
+                      'Submit Registration'
                     )}
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={<PhotoCamera />}
-                      disabled={loading}
-                    >
-                      Upload Photo
-                    </Button>
-                    <Typography variant="caption" color="text.secondary">
-                      Max size: 10MB (will be compressed to ~30KB)
-                    </Typography>
-                  </PhotoUploadBox>
-                </label>
+                  </Button>
+                )}
               </Box>
 
-              {/* Student Information Section */}
-              <SectionTitle variant="h6">
-                <School /> Student Information
-              </SectionTitle>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Person />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Baptism Name"
-                    name="baptismName"
-                    value={formData.baptismName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Church />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="House Name"
-                    name="houseName"
-                    value={formData.houseName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Home />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Gender</InputLabel>
-                    <Select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      disabled={loading}
-                      label="Gender"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <Wc />
-                        </InputAdornment>
-                      }
-                    >
-                      <MenuItem value="Male">Male</MenuItem>
-                      <MenuItem value="Female">Female</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Class</InputLabel>
-                    <Select
-                      name="className"
-                      value={formData.className}
-                      onChange={handleChange}
-                      disabled={loading}
-                      label="Class"
-                    >
-                      <MenuItem value="1">Class 1</MenuItem>
-                      <MenuItem value="2">Class 2</MenuItem>
-                      <MenuItem value="3">Class 3</MenuItem>
-                      <MenuItem value="4">Class 4</MenuItem>
-                      <MenuItem value="5">Class 5</MenuItem>
-                      <MenuItem value="6">Class 6</MenuItem>
-                      <MenuItem value="7">Class 7</MenuItem>
-                      <MenuItem value="8">Class 8</MenuItem>
-                      <MenuItem value="9">Class 9</MenuItem>
-                      <MenuItem value="10">Class 10</MenuItem>
-                      <MenuItem value="11">Class 11</MenuItem>
-                      <MenuItem value="12">Class 12</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Division</InputLabel>
-                    <Select
-                      name="division"
-                      value={formData.division}
-                      onChange={handleChange}
-                      disabled={loading}
-                      label="Division"
-                    >
-                      <MenuItem value="A">A</MenuItem>
-                      <MenuItem value="B">B</MenuItem>
-                      <MenuItem value="C">C</MenuItem>
-                      <MenuItem value="D">D</MenuItem>
-                      <MenuItem value="E">E</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Date of Birth"
-                    name="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      max: new Date().toISOString().split('T')[0],
-                    }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CalendarMonth />
-                        </InputAdornment>
-                      ),
-                    }}
-                    helperText="Select date up to today"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Date of Baptism"
-                    name="dateOfBaptism"
-                    type="date"
-                    value={formData.dateOfBaptism}
-                    onChange={handleChange}
-                    disabled={loading || !formData.dateOfBirth}
-                    required
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      min: formData.dateOfBirth || undefined,
-                      max: new Date().toISOString().split('T')[0],
-                    }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Church />
-                        </InputAdornment>
-                      ),
-                    }}
-                    helperText={!formData.dateOfBirth ? "Select date of birth first" : "Select date after birth"}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Date of Holy Communion"
-                    name="dateOfHolyCommunion"
-                    type="date"
-                    value={formData.dateOfHolyCommunion}
-                    onChange={handleChange}
-                    disabled={loading || !formData.dateOfBirth}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      min: formData.dateOfBirth || undefined,
-                      max: new Date().toISOString().split('T')[0],
-                    }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Church />
-                        </InputAdornment>
-                      ),
-                    }}
-                    helperText={!formData.dateOfBirth ? "Select date of birth first" : "Select date after birth (optional)"}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Parent Information Section */}
-              <SectionTitle variant="h6">
-                <FamilyRestroom /> Parent Information
-              </SectionTitle>
-
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Father's Name"
-                    name="fatherName"
-                    value={formData.fatherName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Person />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Father's Baptism Name"
-                    name="fatherBaptismName"
-                    value={formData.fatherBaptismName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Church />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Mother's Name"
-                    name="motherName"
-                    value={formData.motherName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Person />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Mother's Baptism Name"
-                    name="motherBaptismName"
-                    value={formData.motherBaptismName}
-                    onChange={handleChange}
-                    disabled={loading}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Church />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Contact Information Section */}
-              <SectionTitle variant="h6">
-                <Phone /> Contact Information
-              </SectionTitle>
-
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Phone Number"
-                    name="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Phone />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Email Address"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={loading}
-                    required
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Email />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                fullWidth
-                disabled={loading}
-                sx={{
-                  py: 1.5,
-                  mt: 4,
-                  backgroundColor: 'primary.main',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={24} sx={{ color: 'white' }} />
-                ) : (
-                  'Submit Registration'
-                )}
-              </Button>
-
-              <Typography 
-                variant="caption" 
-                color="text.secondary" 
-                sx={{ textAlign: 'center', mt: 2, display: 'block' }}
-              >
-                All fields marked with * are required. Your registration will be reviewed by the administration.
-              </Typography>
+              {activeStep === steps.length - 1 && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ textAlign: 'center', mt: 2, display: 'block' }}
+                >
+                  All fields marked with * are required. Your registration will be reviewed by the administration.
+                </Typography>
+              )}
             </Box>
           </StyledCard>
         </Container>
@@ -885,9 +783,9 @@ const PublicRegistration = () => {
             {uploadStatus}
           </Typography>
           <Box sx={{ width: '100%', mt: 2 }}>
-            <LinearProgress 
-              variant="determinate" 
-              value={uploadProgress} 
+            <LinearProgress
+              variant="determinate"
+              value={uploadProgress}
               sx={{ height: 8, borderRadius: 4 }}
             />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -898,14 +796,9 @@ const PublicRegistration = () => {
       </ProgressBackdrop>
 
       {/* Success/Error Popup Dialog */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ 
-          textAlign: 'center', 
+      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{
+          textAlign: 'center',
           pt: 4,
           display: 'flex',
           flexDirection: 'column',
