@@ -11,7 +11,7 @@ import { Backdrop, CircularProgress, Typography, ThemeProvider, createTheme } fr
 import LoginPage from './pages/LoginPage';
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
-
+import UploadPhoto from './pages/UploadPhoto';
 // Core Pages
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
@@ -156,6 +156,7 @@ function App() {
             </Route>
             <Route exact path="/sign-up" component={SignUp} />
             <Route exact path="/registration" component={Registration} />
+            <Route path="/12" component={UploadPhoto} />
             <Route exact path="/sign-in" component={SignIn} />
 
             {/* Protected routes with Main layout */}
@@ -167,6 +168,7 @@ function App() {
 
                   {/* Core routes */}
                   <Route exact path="/adminreg" component={AdminRegistrations} />
+                  
                   {/* <Route exact path="/dashboard" component={Home} />
                   <Route exact path="/profile" component={Profile} />
                   <Route path="/adminreg" component={AdminRegistrations} /> */}
