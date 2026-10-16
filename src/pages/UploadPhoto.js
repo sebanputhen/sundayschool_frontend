@@ -1,9 +1,9 @@
 // src/pages/UploadPhoto.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, TextField, Button, Card, ThemeProvider, createTheme,
   CssBaseline, Avatar, CircularProgress, Alert, Stepper, Step, StepLabel,
-  IconButton,
+  IconButton, Autocomplete,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { CloudUpload, ArrowBack, CheckCircle, CameraAlt, Delete } from '@mui/icons-material';
@@ -37,7 +37,7 @@ const UploadBox = styled(Box)(({ theme, isDragging }) => ({
   '&:hover': { borderColor: theme.palette.primary.main, backgroundColor: '#EFF6FF' },
 }));
 
-const steps = ['Enter Details', 'Upload Photo'];
+const steps = ['Select Student', 'Upload Photo'];
 
 const UploadPhoto = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -45,8 +45,9 @@ const UploadPhoto = () => {
   const [alert, setAlert] = useState({ open: false, type: '', message: '' });
 
   // Step 1
-  const [name, setName] = useState('');
-  const [houseName, setHouseName] = useState('');
+  const [studentsList, setStudentsList] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
   const [dob, setDob] = useState('');
   const [student, setStudent] = useState(null);
 
@@ -57,22 +58,39 @@ const UploadPhoto = () => {
   const [uploaded, setUploaded] = useState(false);
   const fileRef = useRef(null);
 
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const res = await axiosInstance.get('/public/students-12');
+      if (res.data.success) {
+        setStudentsList(res.data.data);
+      }
+    } catch (error) {
+      showAlert('error', 'Failed to load students list');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
   const showAlert = (type, message) => {
     setAlert({ open: true, type, message });
     setTimeout(() => setAlert({ open: false, type: '', message: '' }), 5000);
   };
 
-  const handleFindStudent = async (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !houseName.trim() || !dob) {
-      showAlert('error', 'Please fill all fields');
+    if (!selectedOption || !dob) {
+      showAlert('error', 'Please select a student and enter date of birth');
       return;
     }
     try {
       setLoading(true);
-      const res = await axiosInstance.post('/public/find-student', {
-        name: name.trim(),
-        houseName: houseName.trim(),
+      const res = await axiosInstance.post('/public/verify-student', {
+        studentId: selectedOption._id,
         dateOfBirth: dob,
       });
       if (res.data.success) {
@@ -80,7 +98,7 @@ const UploadPhoto = () => {
         setActiveStep(1);
       }
     } catch (error) {
-      showAlert('error', error.response?.data?.message || 'Student not found');
+      showAlert('error', error.response?.data?.message || 'Verification failed');
     } finally {
       setLoading(false);
     }
@@ -128,11 +146,11 @@ const UploadPhoto = () => {
 
   const handleReset = () => {
     setActiveStep(0);
-    setName('');
-    setHouseName('');
+    setSelectedOption(null);
     setDob('');
     setStudent(null);
     setFile(null);
+    if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setUploaded(false);
   };
@@ -159,7 +177,7 @@ const UploadPhoto = () => {
             Upload Student Photo
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-            Find your record and upload your photo
+            Class 12 — Select your name and verify with date of birth
           </Typography>
 
           <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
@@ -168,41 +186,69 @@ const UploadPhoto = () => {
             ))}
           </Stepper>
 
-          {/* STEP 1: Enter Details */}
+          {/* STEP 1 */}
           {activeStep === 0 && (
             <StyledCard>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Enter Your Details</Typography>
-              <form onSubmit={handleFindStudent}>
-                <TextField
-                  fullWidth label="Full Name" value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required sx={{ mb: 2 }}
-                  placeholder="Enter your full name"
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Select Your Name</Typography>
+              <form onSubmit={handleVerify}>
+                <Autocomplete
+                  options={studentsList}
+                  loading={loadingStudents}
+                  value={selectedOption}
+                  onChange={(e, val) => setSelectedOption(val)}
+                  getOptionLabel={(opt) => `${opt.name} — ${opt.houseName}`}
+                  renderOption={(props, opt) => (
+                    <li {...props} key={opt._id}>
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">{opt.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {opt.houseName} &bull; {opt.division}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Student Name — House Name"
+                      placeholder="Type to search..."
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingStudents ? <CircularProgress size={18} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  sx={{ mb: 2 }}
+                  noOptionsText="No students found"
                 />
-                <TextField
-                  fullWidth label="House Name" value={houseName}
-                  onChange={(e) => setHouseName(e.target.value)}
-                  required sx={{ mb: 2 }}
-                  placeholder="Enter your house name"
-                />
+
                 <TextField
                   fullWidth label="Date of Birth" type="date" value={dob}
                   onChange={(e) => setDob(e.target.value)}
                   required sx={{ mb: 3 }}
                   InputLabelProps={{ shrink: true }}
+                  helperText="Enter your DOB to verify identity"
                 />
+
                 <Button
                   type="submit" variant="contained" fullWidth size="large"
-                  disabled={loading || !name.trim() || !houseName.trim() || !dob}
+                  disabled={loading || !selectedOption || !dob}
                   sx={{ borderRadius: 2, py: 1.5, textTransform: 'none', fontSize: 16 }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Find My Record'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Next — Upload Photo'}
                 </Button>
               </form>
             </StyledCard>
           )}
 
-          {/* STEP 2: Upload Photo */}
+          {/* STEP 2 */}
           {activeStep === 1 && student && !uploaded && (
             <StyledCard>
               <Button startIcon={<ArrowBack />} onClick={() => setActiveStep(0)}
@@ -272,13 +318,13 @@ const UploadPhoto = () => {
             </StyledCard>
           )}
 
-          {/* Success State */}
+          {/* Success */}
           {uploaded && (
             <StyledCard sx={{ textAlign: 'center' }}>
               <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
               <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>Photo Uploaded!</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {student.name}'s photo has been updated successfully.
+                {student.name}'s photo has been updated.
               </Typography>
               {preview && (
                 <Avatar src={preview} sx={{ width: 120, height: 120, margin: '0 auto', mb: 3, border: '3px solid #10B981' }}>
