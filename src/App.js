@@ -143,12 +143,12 @@ function App() {
             </Route>
 
             {/* Auth routes */}
-            <Route exact path="/adminreg">
+            <Route exact path="/login">
               {isAuthenticated() ? (
                 isSuperAdmin() ? (
                   <Redirect to="/adminreg" />
                 ) : (
-                  <Redirect to="/adminreg" />
+                  <Redirect to="/Home" />
                 )
               ) : ( 
                 <LoginPage />
@@ -169,48 +169,12 @@ function App() {
                   {/* Core routes */}
                   <Route exact path="/adminreg" component={AdminRegistrations} />
                   
-                  {/* <Route exact path="/dashboard" component={Home} />
-                  <Route exact path="/profile" component={Profile} />
-                  <Route path="/adminreg" component={AdminRegistrations} /> */}
-                  {/* Organization routes */}
-                  {/* <Route exact path="/forane" component={Forane} />
-                  <Route exact path="/parish" component={Parish} />
-                  <Route exact path="/koottayma" component={Koottayma} />
-                  <Route exact path="/Family" component={Family} /> */}
-
-                  {/* Finance routes */}
-                  {/* <Route exact path="/PersonManagement" component={PersonManagement} />
-                  <Route exact path="/FamilyFinanace" component={FamilyFinanace} />
-                  <Route exact path="/FamilyFinance" component={FamilyNewjune14} />
-                  <Route exact path="/FamilyFinance1" component={FamilyNew1} />
-                  <Route exact path="/transactions/new" component={TransactionListPage} />
-                  <Route exact path="/transactions" component={TransactionPage} />
-                  <Route exact path="/Titheprint" component={Titheprint} />
-                  <Route exact path="/FamilyNewjune14" component={FamilyNew} /> */}
-
-                  {/* Settings routes */}
-                  {/* <Route exact path="/FinanceSettings" component={FinanceSettings} />
-                  <Route exact path="/communitysettings" component={CommunitySettings} />
-                  <Route exact path="/otherprojectsettings" component={OtherProjectSettings} />
-                  <Route exact path="/parishallocsettings" component={ParishAllocSettings} />
-                  <Route exact path="/parishallocsettings1" component={ParishAllocSettings1} /> */}
-
-                  {/* Other routes */}
-                  {/* <Route exact path="/movefamily" component={MoveFamily} />
-                  <Route exact path="/community" component={Community} />
-                  <Route exact path="/project" component={Project} />
-                  <Route exact path="/report" component={ChurchReportPage} />
-                  <Route exact path="/ReportsDashboard" component={ComprehensiveReportsDashboard} />
-                  <Route exact path="/family-print" component={BulkFamilyPrintPage} />
-                  <Route exact path="/print-family/:id" component={BulkFamilyPrintPage} />
-                  <Route exact path="/addopening" component={OpeningBalance} />
-                  <Route exact path="/yearendtransfer" component={YearEndTransfer} />
-                  <Route exact path="/AuditDashboard" component={AuditDashboard} /> */}
+                 
                   <Route exact path="/logout" component={logout} />
 
                   {/* Catch all route - redirect to home */}
                   <Route path="*">
-                    <Redirect to="/home" />
+                    <Redirect to="/Home" />
                   </Route>
                 </Switch>
               </Main>
