@@ -210,7 +210,7 @@ function App() {
 
                   {/* Catch all route - redirect to home */}
                   <Route path="*">
-                    <Redirect to="/adminreg" />
+                    <Redirect to="/home" />
                   </Route>
                 </Switch>
               </Main>
