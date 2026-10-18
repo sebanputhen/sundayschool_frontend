@@ -99,7 +99,7 @@ const SuperAdminRoute = ({ component: Component, ...rest }) => (
       isAuthenticated() && isSuperAdmin() ? (
         <Component {...props} />
       ) : (
-        <Redirect to="/home" />
+        <Redirect to="/adminreg" />
       )
     }
   />
@@ -143,7 +143,7 @@ function App() {
             </Route>
 
             {/* Auth routes */}
-            <Route exact path="/login">
+            <Route exact path="/adminreg">
               {isAuthenticated() ? (
                 isSuperAdmin() ? (
                   <Redirect to="/adminreg" />
@@ -210,7 +210,7 @@ function App() {
 
                   {/* Catch all route - redirect to home */}
                   <Route path="*">
-                    <Redirect to="/home" />
+                    <Redirect to="/adminreg" />
                   </Route>
                 </Switch>
               </Main>
