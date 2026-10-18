@@ -1,12 +1,15 @@
 // src/pages/UploadPhoto.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box, Typography, TextField, Button, Card, ThemeProvider, createTheme,
   CssBaseline, Avatar, CircularProgress, Alert, Stepper, Step, StepLabel,
-  IconButton, Autocomplete,
+  IconButton, List, ListItem, ListItemAvatar, ListItemText, Divider,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { CloudUpload, ArrowBack, CheckCircle, CameraAlt, Delete } from '@mui/icons-material';
+import {
+  CloudUpload, ArrowBack, CheckCircle, CameraAlt, Delete,
+  PhotoCamera, Search,
+} from '@mui/icons-material';
 import axiosInstance from '../axiosConfig';
 
 const theme = createTheme({
@@ -37,7 +40,7 @@ const UploadBox = styled(Box)(({ theme, isDragging }) => ({
   '&:hover': { borderColor: theme.palette.primary.main, backgroundColor: '#EFF6FF' },
 }));
 
-const steps = ['Select Student', 'Upload Photo'];
+const steps = ['Enter Date of Birth', 'Upload Photo'];
 
 const UploadPhoto = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -45,10 +48,9 @@ const UploadPhoto = () => {
   const [alert, setAlert] = useState({ open: false, type: '', message: '' });
 
   // Step 1
-  const [studentsList, setStudentsList] = useState([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
   const [dob, setDob] = useState('');
+  const [matchedStudents, setMatchedStudents] = useState([]);
+  const [searched, setSearched] = useState(false);
   const [student, setStudent] = useState(null);
 
   // Step 2
@@ -58,61 +60,44 @@ const UploadPhoto = () => {
   const [uploaded, setUploaded] = useState(false);
   const fileRef = useRef(null);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
-    try {
-      setLoadingStudents(true);
-      const res = await axiosInstance.get('/public/students-12');
-      if (res.data.success) {
-        setStudentsList(res.data.data);
-      }
-    } catch (error) {
-      showAlert('error', 'Failed to load students list');
-    } finally {
-      setLoadingStudents(false);
-    }
-  };
-
   const showAlert = (type, message) => {
     setAlert({ open: true, type, message });
     setTimeout(() => setAlert({ open: false, type: '', message: '' }), 5000);
   };
 
-  const handleVerify = async (e) => {
+  const handleSearchDob = async (e) => {
     e.preventDefault();
-    if (!selectedOption || !dob) {
-      showAlert('error', 'Please select a student and enter date of birth');
-      return;
-    }
+    if (!dob) { showAlert('error', 'Please enter date of birth'); return; }
     try {
       setLoading(true);
-      const res = await axiosInstance.post('/public/verify-student', {
-        studentId: selectedOption._id,
-        dateOfBirth: dob,
-      });
+      setSearched(false);
+      const res = await axiosInstance.post('/public/students-by-dob', { dateOfBirth: dob });
       if (res.data.success) {
-        setStudent(res.data.data);
-        setActiveStep(1);
+        setMatchedStudents(res.data.data);
+        setSearched(true);
+        if (res.data.data.length === 0) {
+          showAlert('error', 'No class 12 students found with this date of birth');
+        }
       }
     } catch (error) {
-      showAlert('error', error.response?.data?.message || 'Verification failed');
+      showAlert('error', error.response?.data?.message || 'Search failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSelectStudent = (s) => {
+    setStudent(s);
+    setActiveStep(1);
+  };
+
   const handleFileSelect = (selectedFile) => {
     if (!selectedFile) return;
     if (!selectedFile.type.startsWith('image/')) {
-      showAlert('error', 'Please select an image file');
-      return;
+      showAlert('error', 'Please select an image file'); return;
     }
     if (selectedFile.size > 5 * 1024 * 1024) {
-      showAlert('error', 'File size must be less than 5MB');
-      return;
+      showAlert('error', 'File size must be less than 5MB'); return;
     }
     setFile(selectedFile);
     setPreview(URL.createObjectURL(selectedFile));
@@ -146,8 +131,9 @@ const UploadPhoto = () => {
 
   const handleReset = () => {
     setActiveStep(0);
-    setSelectedOption(null);
     setDob('');
+    setMatchedStudents([]);
+    setSearched(false);
     setStudent(null);
     setFile(null);
     if (preview) URL.revokeObjectURL(preview);
@@ -177,7 +163,7 @@ const UploadPhoto = () => {
             Upload Student Photo
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-            Class 12 — Select your name and verify with date of birth
+            Class 12 — Enter your date of birth to find your record
           </Typography>
 
           <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
@@ -186,72 +172,95 @@ const UploadPhoto = () => {
             ))}
           </Stepper>
 
-          {/* STEP 1 */}
+          {/* STEP 1: Enter DOB → Show matching students */}
           {activeStep === 0 && (
             <StyledCard>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Select Your Name</Typography>
-              <form onSubmit={handleVerify}>
-                <Autocomplete
-                  options={studentsList}
-                  loading={loadingStudents}
-                  value={selectedOption}
-                  onChange={(e, val) => setSelectedOption(val)}
-                  getOptionLabel={(opt) => `${opt.name} — ${opt.houseName}`}
-                  renderOption={(props, opt) => (
-                    <li {...props} key={opt._id}>
-                      <Box>
-                        <Typography variant="body2" fontWeight="medium">{opt.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {opt.houseName} &bull; {opt.division}
-                        </Typography>
-                      </Box>
-                    </li>
-                  )}
-                  isOptionEqualToValue={(opt, val) => opt._id === val._id}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Student Name — House Name"
-                      placeholder="Type to search..."
-                      required
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {loadingStudents ? <CircularProgress size={18} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                  sx={{ mb: 2 }}
-                  noOptionsText="No students found"
-                />
-
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Enter Your Date of Birth</Typography>
+              <form onSubmit={handleSearchDob}>
                 <TextField
                   fullWidth label="Date of Birth" type="date" value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  required sx={{ mb: 3 }}
+                  onChange={(e) => { setDob(e.target.value); setSearched(false); setMatchedStudents([]); }}
+                  required sx={{ mb: 2 }}
                   InputLabelProps={{ shrink: true }}
-                  helperText="Enter your DOB to verify identity"
                 />
-
                 <Button
                   type="submit" variant="contained" fullWidth size="large"
-                  disabled={loading || !selectedOption || !dob}
+                  disabled={loading || !dob}
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Search />}
                   sx={{ borderRadius: 2, py: 1.5, textTransform: 'none', fontSize: 16 }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Next — Upload Photo'}
+                  {loading ? 'Searching...' : 'Search'}
                 </Button>
               </form>
+
+              {/* Matched Students List */}
+              {searched && matchedStudents.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    {matchedStudents.length} student{matchedStudents.length > 1 ? 's' : ''} found — select yours:
+                  </Typography>
+                  <List sx={{ bgcolor: '#F9FAFB', borderRadius: 2, overflow: 'hidden' }}>
+                    {matchedStudents.map((s, i) => (
+                      <React.Fragment key={s._id}>
+                        {i > 0 && <Divider />}
+                        <ListItem
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: '#EFF6FF' },
+                            transition: 'background 0.15s',
+                            py: 1.5,
+                          }}
+                          onClick={() => handleSelectStudent(s)}
+                          secondaryAction={
+                            <Button
+                              size="small" variant="outlined"
+                              startIcon={<PhotoCamera />}
+                              onClick={(e) => { e.stopPropagation(); handleSelectStudent(s); }}
+                              sx={{ textTransform: 'none', borderRadius: 2 }}
+                            >
+                              Upload
+                            </Button>
+                          }
+                        >
+                          <ListItemAvatar>
+                            <Avatar src={s.photo || undefined} sx={{ bgcolor: '#2563EB' }}>
+                              {s.name.charAt(0)}
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Typography variant="body1" fontWeight="bold">{s.name}</Typography>
+                            }
+                            secondary={
+                              <Typography variant="body2" color="text.secondary">
+                                {s.houseName} &bull; Division {s.division}
+                              </Typography>
+                            }
+                          />
+                        </ListItem>
+                      </React.Fragment>
+                    ))}
+                  </List>
+                </Box>
+              )}
+
+              {searched && matchedStudents.length === 0 && (
+                <Box sx={{ mt: 3, textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No class 12 students found with this date of birth.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Please check the date and try again.
+                  </Typography>
+                </Box>
+              )}
             </StyledCard>
           )}
 
-          {/* STEP 2 */}
+          {/* STEP 2: Upload Photo */}
           {activeStep === 1 && student && !uploaded && (
             <StyledCard>
-              <Button startIcon={<ArrowBack />} onClick={() => setActiveStep(0)}
+              <Button startIcon={<ArrowBack />} onClick={() => { setActiveStep(0); setStudent(null); setFile(null); removeFile(); }}
                 sx={{ mb: 2, textTransform: 'none' }}>Back</Button>
 
               <Box sx={{ textAlign: 'center', mb: 3 }}>
@@ -263,7 +272,7 @@ const UploadPhoto = () => {
                 </Avatar>
                 <Typography variant="h6" fontWeight="bold">{student.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {student.houseName} &bull; {student.className}-{student.division}
+                  {student.houseName} &bull; Division {student.division}
                 </Typography>
                 {student.photo && !file && (
                   <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: 'block' }}>
