@@ -85,23 +85,86 @@ const UploadPhoto = () => {
       setLoading(false);
     }
   };
+const compressImage = (file, maxSizeKB = 30) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
 
+        // Scale down if too large
+        const maxDim = 800;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Binary search for quality that hits ~30KB
+        let lo = 0.01, hi = 0.9, bestBlob = null;
+
+        const tryQuality = () => {
+          const mid = (lo + hi) / 2;
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { resolve(file); return; }
+
+              if (!bestBlob || Math.abs(blob.size - maxSizeKB * 1024) < Math.abs(bestBlob.size - maxSizeKB * 1024)) {
+                bestBlob = blob;
+              }
+
+              if (Math.abs(blob.size - maxSizeKB * 1024) < 2048 || (hi - lo) < 0.02) {
+                // Close enough or exhausted range
+                const compressed = new File([bestBlob], file.name, { type: 'image/jpeg' });
+                console.log(`Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+                resolve(compressed);
+                return;
+              }
+
+              if (blob.size > maxSizeKB * 1024) {
+                hi = mid;
+              } else {
+                lo = mid;
+              }
+              tryQuality();
+            },
+            'image/jpeg',
+            mid
+          );
+        };
+        tryQuality();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
   const handleSelectStudent = (s) => {
     setStudent(s);
     setActiveStep(1);
   };
 
-  const handleFileSelect = (selectedFile) => {
-    if (!selectedFile) return;
-    if (!selectedFile.type.startsWith('image/')) {
-      showAlert('error', 'Please select an image file'); return;
-    }
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      showAlert('error', 'File size must be less than 5MB'); return;
-    }
-    setFile(selectedFile);
-    setPreview(URL.createObjectURL(selectedFile));
-  };
+  const handleFileSelect = async (selectedFile) => {
+  if (!selectedFile) return;
+  if (!selectedFile.type.startsWith('image/')) {
+    showAlert('error', 'Please select an image file'); return;
+  }
+  if (selectedFile.size > 5 * 1024 * 1024) {
+    showAlert('error', 'File size must be less than 5MB'); return;
+  }
+
+  // Compress to ~30KB
+  const compressed = await compressImage(selectedFile, 30);
+  setFile(compressed);
+  setPreview(URL.createObjectURL(compressed));
+};
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -313,7 +376,7 @@ const UploadPhoto = () => {
                     </IconButton>
                   </Box>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                    {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                   {file.name} ({(file.size / 1024).toFixed(0)} KB)
                   </Typography>
                   <Button
                     variant="contained" fullWidth size="large" onClick={handleUpload}
