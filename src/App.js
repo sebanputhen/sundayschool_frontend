@@ -52,7 +52,9 @@ import YearEndTransfer from './pages/YearEndTransfer';
 import logout from './pages/logout';
 import AuditDashboard from './pages/AuditDashboard';
 import Registration from './pages/PublicRegistration ';
+import Registrationimage from './pages/PublicRegistrationphoto';
 import AdminRegistrations from './pages/AdminRegistrations';
+import AdminimageRegistrations from './pages/AdminimageRegistrations';
 // Styles
 import "antd/dist/antd.css";
 import "./assets/styles/main.css";
@@ -156,6 +158,7 @@ function App() {
             </Route>
             <Route exact path="/sign-up" component={SignUp} />
             <Route exact path="/registration" component={Registration} />
+             <Route exact path="/regimage" component={Registrationimage} />
             <Route path="/12" component={UploadPhoto} />
             <Route exact path="/sign-in" component={SignIn} />
 
@@ -168,6 +171,7 @@ function App() {
 
                   {/* Core routes */}
                   <Route exact path="/adminreg" component={AdminRegistrations} />
+                  <Route exact path="/regrpt" component={AdminimageRegistrations} />
                   
                  
                   <Route exact path="/logout" component={logout} />
