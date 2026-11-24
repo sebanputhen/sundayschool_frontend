@@ -316,11 +316,11 @@ const Sidenav = ({ color, collapsed = false }) => {
   const drawer = (
     <>
       <LogoWrapper collapsed={collapsed}>
-        <img 
+        {/* <img 
           src={logo} 
           style={{ width: collapsed ? '24px' : '100%' }} 
           alt="Diocese Logo" 
-        />
+        /> */}
         {!collapsed && (
           <Typography
             variant="subtitle1"

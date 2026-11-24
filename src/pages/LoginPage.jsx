@@ -185,7 +185,7 @@ const LoginPage = () => {
             }}
           >
             <Box sx={{ textAlign: 'center', mb: 2 }}>
-              <img src={logo} style={{width:'100%'}} alt="Diocese Logo" />
+              {/* <img src={logo} style={{width:'100%'}} alt="Diocese Logo" /> */}
               <Typography variant="body2" color="text.secondary">
                 Please sign in to continue
               </Typography>
